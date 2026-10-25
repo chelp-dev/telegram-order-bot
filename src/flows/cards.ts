@@ -1,12 +1,12 @@
 // Text and buttons for order and booking cards, as seen by the customer and by the staff.
 import { InlineKeyboard } from 'grammy';
-import { remainingStatuses, type OrderStatus } from '../core/status.js';
+import { formatMoney } from '../core/catalog.js';
 import { formatDate } from '../core/schedule.js';
+import { remainingStatuses, type OrderStatus } from '../core/status.js';
 import { escapeHtml } from '../core/validate.js';
+import type { Currency } from '../data/menu.js';
 import { dict, type Dict } from '../i18n/index.js';
-import { formatMoney } from '../menu.js';
 import type { Booking, Fulfilment, Order, OrderLine } from '../store.js';
-import type { Currency } from '../menu.js';
 
 export interface Card {
   text: string;

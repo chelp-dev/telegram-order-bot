@@ -1,4 +1,5 @@
-import { MENU, findItem, type Currency, type MenuItem } from '../menu.js';
+import { MENU, type Currency, type MenuItem } from '../data/menu.js';
+import { findItem } from './catalog.js';
 
 /** Item id -> quantity. Treated as immutable: every change returns a new cart. */
 export type Cart = Readonly<Record<string, number>>;

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { canAdvance, canDecide, nextStatus, remainingStatuses } from '../src/core/status.js';
-import { Staff } from '../src/flows/staff.js';
+import { Staff } from '../src/staff.js';
 import { Store, type Booking, type Order } from '../src/store.js';
 
 describe('order status rules', () => {

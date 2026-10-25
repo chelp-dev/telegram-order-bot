@@ -3,10 +3,13 @@
 import { randomInt } from 'node:crypto';
 import type { Cart } from './core/cart.js';
 import type { BookingStatus, OrderStatus } from './core/status.js';
+import type { Currency } from './data/menu.js';
 import type { Lang } from './i18n/index.js';
-import type { Currency } from './menu.js';
 
 export const DATA_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Memory bounds for a public demo; the oldest entries are dropped first. */
+export const STORE_LIMITS = { sessions: 10_000, orders: 10_000, bookings: 10_000 } as const;
 
 export type Fulfilment = 'delivery' | 'pickup';
 
@@ -42,7 +45,8 @@ export interface OrderLine {
   sum: number;
 }
 
-interface Tracked {
+/** Fields shared by orders and bookings: who it belongs to and where its two cards live. */
+export interface Tracked {
   id: string;
   userId: number;
   chatId: number;
@@ -73,30 +77,63 @@ export interface Booking extends Tracked {
   status: BookingStatus;
 }
 
+/** Map.set, then drops the oldest entries (Maps iterate in insertion order) while over `max`. */
+function setCapped<K, V>(map: Map<K, V>, key: K, value: V, max: number, onDrop?: (value: V) => void): void {
+  map.delete(key);
+  map.set(key, value);
+  for (const [oldestKey, oldest] of map) {
+    if (map.size <= max) break;
+    onDrop?.(oldest);
+    map.delete(oldestKey);
+  }
+}
+
+function stopTimer(record: Tracked): void {
+  clearTimeout(record.timer);
+  record.timer = undefined;
+}
+
 export class Store {
   private readonly sessions = new Map<number, Session>();
-  readonly orders = new Map<string, Order>();
-  readonly bookings = new Map<string, Booking>();
+  private readonly orders = new Map<string, Order>();
+  private readonly bookings = new Map<string, Booking>();
 
-  constructor(private readonly maxSessions = 10_000) {}
+  constructor(private readonly limits: { sessions: number; orders: number; bookings: number } = STORE_LIMITS) {}
 
-  /** Returns the user's session, creating it if needed. Least recently seen sessions are evicted past maxSessions. */
+  /** Returns the user's session, creating it if needed, and marks it as most recently seen. */
   session(userId: number, defaultLang: Lang, now = Date.now()): Session {
-    const existing = this.sessions.get(userId);
-    const session = existing ?? { lang: defaultLang, cart: {}, step: 'idle', checkout: {}, booking: {}, lastSeen: now };
+    const session = this.sessions.get(userId) ?? {
+      lang: defaultLang,
+      cart: {},
+      step: 'idle',
+      checkout: {},
+      booking: {},
+      lastSeen: now,
+    };
     session.lastSeen = now;
     // Re-inserting keeps the Map ordered from least to most recently seen.
-    this.sessions.delete(userId);
-    this.sessions.set(userId, session);
-    if (this.sessions.size > this.maxSessions) {
-      const oldest = this.sessions.keys().next().value;
-      if (oldest !== undefined) this.sessions.delete(oldest);
-    }
+    setCapped(this.sessions, userId, session, this.limits.sessions);
     return session;
   }
 
-  get sessionCount(): number {
-    return this.sessions.size;
+  addOrder(order: Order): void {
+    setCapped(this.orders, order.id, order, this.limits.orders, stopTimer);
+  }
+
+  addBooking(booking: Booking): void {
+    setCapped(this.bookings, booking.id, booking, this.limits.bookings, stopTimer);
+  }
+
+  getOrder(id: string): Order | undefined {
+    return this.orders.get(id);
+  }
+
+  getBooking(id: string): Booking | undefined {
+    return this.bookings.get(id);
+  }
+
+  get size(): { sessions: number; orders: number; bookings: number } {
+    return { sessions: this.sessions.size, orders: this.orders.size, bookings: this.bookings.size };
   }
 
   /** A short, human-friendly id ("4821") that is unique among live orders and bookings. */
@@ -114,10 +151,10 @@ export class Store {
     for (const [userId, session] of this.sessions) {
       if (now - session.lastSeen >= DATA_TTL_MS) this.sessions.delete(userId);
     }
-    for (const records of [this.orders, this.bookings] as Map<string, Tracked>[]) {
+    for (const records of [this.orders, this.bookings]) {
       for (const [id, record] of records) {
         if (now - record.createdAt < DATA_TTL_MS) continue;
-        clearTimeout(record.timer);
+        stopTimer(record);
         records.delete(id);
       }
     }
@@ -125,6 +162,6 @@ export class Store {
 
   /** Stops all pending timers (used on shutdown). */
   stopTimers(): void {
-    for (const record of [...this.orders.values(), ...this.bookings.values()]) clearTimeout(record.timer);
+    for (const record of [...this.orders.values(), ...this.bookings.values()]) stopTimer(record);
   }
 }

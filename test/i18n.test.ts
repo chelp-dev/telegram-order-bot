@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dict, pickLang } from '../src/i18n/index.js';
-import { CATEGORIES, MENU } from '../src/menu.js';
+import { CATEGORIES, MENU } from '../src/data/menu.js';
 
 describe('i18n', () => {
   it('uk and en have exactly the same keys', () => {

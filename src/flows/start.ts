@@ -1,14 +1,16 @@
+// Main menu, language switch, "about", and the fallback for anything no other flow handled.
 import { Composer, InlineKeyboard } from 'grammy';
+import type { BotConfig } from '../config.js';
+import { answer, HTML, onButton, show, tr, type BotContext } from '../context.js';
 import { cartCount } from '../core/cart.js';
 import { escapeHtml } from '../core/validate.js';
-import { HTML, onButton, show, tr, type BotConfig, type BotContext } from '../context.js';
 import { otherLang } from '../i18n/index.js';
 
 export function mainKeyboard(ctx: BotContext): InlineKeyboard {
   const t = tr(ctx);
   return new InlineKeyboard()
     .text(t.btnMenu, 'nav:menu')
-    .text(t.btnCart(cartCount(ctx.s.cart)), 'nav:cart')
+    .text(t.btnCart(cartCount(ctx.session.cart)), 'nav:cart')
     .row()
     .text(t.btnBook, 'nav:book')
     .row()
@@ -21,34 +23,19 @@ export async function showMain(ctx: BotContext): Promise<void> {
   await show(ctx, tr(ctx).welcome(name), mainKeyboard(ctx));
 }
 
-/** Leaves any half-finished checkout and hides the contact-share keyboard if it is open. */
-async function resetConversation(ctx: BotContext): Promise<void> {
-  const hadReplyKeyboard = ctx.s.step === 'phone';
-  ctx.s.step = 'idle';
-  ctx.s.checkout = {};
-  if (hadReplyKeyboard) await ctx.reply(tr(ctx).cancelled, { reply_markup: { remove_keyboard: true } });
-}
-
 export function startFlow(config: BotConfig): Composer<BotContext> {
   const composer = new Composer<BotContext>();
 
-  composer.command('start', async (ctx) => {
-    await resetConversation(ctx);
-    await showMain(ctx);
-  });
-
-  composer.command('cancel', async (ctx) => {
-    await resetConversation(ctx);
-    await showMain(ctx);
-  });
+  // A half-finished checkout is left by checkoutGuard() before these run.
+  composer.command(['start', 'cancel'], showMain);
 
   composer.command('lang', async (ctx) => {
-    ctx.s.lang = otherLang(ctx.s.lang);
+    ctx.session.lang = otherLang(ctx.session.lang);
     await showMain(ctx);
   });
 
   onButton(composer, 'lang', async (ctx) => {
-    ctx.s.lang = otherLang(ctx.s.lang);
+    ctx.session.lang = otherLang(ctx.session.lang);
     await showMain(ctx);
     return tr(ctx).langSwitched;
   });
@@ -59,18 +46,20 @@ export function startFlow(config: BotConfig): Composer<BotContext> {
 
   onButton(composer, 'nav:about', async (ctx) => {
     const t = tr(ctx);
-    await show(ctx, t.about(config.siteUrl, config.repoUrl), new InlineKeyboard().text(t.btnBack, 'nav:main'));
+    await show(
+      ctx,
+      t.about(escapeHtml(config.siteUrl), escapeHtml(config.repoUrl)),
+      new InlineKeyboard().text(t.btnBack, 'nav:main'),
+    );
   });
 
   return composer;
 }
 
-/** Fallback for anything no flow handled: stale buttons and stray messages. */
+/** Stale buttons (e.g. from before a restart) and stray messages. */
 export function fallbackFlow(): Composer<BotContext> {
   const composer = new Composer<BotContext>();
-  composer.on('callback_query', async (ctx) => {
-    await ctx.answerCallbackQuery({ text: tr(ctx).expired }).catch(() => undefined);
-  });
+  composer.on('callback_query', (ctx) => answer(ctx, tr(ctx).expired));
   composer.on('message', async (ctx) => {
     await ctx.reply(tr(ctx).useButtons, { ...HTML, reply_markup: mainKeyboard(ctx) });
   });

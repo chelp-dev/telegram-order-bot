@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_QTY_PER_ITEM, cartCount, cartLines, cartTotal, changeQty, type Cart } from '../src/core/cart.js';
-import { formatMoney } from '../src/menu.js';
+import { formatMoney } from '../src/core/catalog.js';
 
 describe('cart', () => {
   it('adds and removes items without mutating the original cart', () => {

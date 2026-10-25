@@ -1,19 +1,22 @@
 import { Bot } from 'grammy';
 import type { UserFromGetMe } from 'grammy/types';
+import type { BotConfig } from './config.js';
+import { answer, type BotContext } from './context.js';
 import { RateLimiter } from './core/rateLimit.js';
-import type { BotConfig, BotContext } from './context.js';
 import { bookingFlow } from './flows/booking.js';
-import { checkoutFlow } from './flows/checkout.js';
+import { checkoutFlow, checkoutGuard } from './flows/checkout.js';
 import { menuFlow } from './flows/menu.js';
-import { Staff, staffFlow } from './flows/staff.js';
+import { staffFlow } from './flows/staff.js';
 import { fallbackFlow, startFlow } from './flows/start.js';
 import { dict, pickLang, type Lang } from './i18n/index.js';
+import { Staff } from './staff.js';
 import { Store } from './store.js';
 
-const HOUR_MS = 60 * 60 * 1000;
-const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+const SWEEP_INTERVAL_MS = 10 * MINUTE_MS;
 
-/** Abuse limits for a public demo. */
+/** Abuse limits for a public demo, per user. */
 export const LIMITS = {
   updatesPerMinute: 30,
   ordersPerHour: 5,
@@ -25,18 +28,23 @@ export function createBot(token: string, config: BotConfig, botInfo?: UserFromGe
   const bot = new Bot<BotContext>(token, { botInfo });
   const store = new Store();
   const staff = new Staff(bot.api, store, config.autoAdvanceMs);
-  const updateLimiter = new RateLimiter(LIMITS.updatesPerMinute, 60_000);
+  const updateLimiter = new RateLimiter(LIMITS.updatesPerMinute, MINUTE_MS);
   const orderLimiter = new RateLimiter(LIMITS.ordersPerHour, HOUR_MS);
   const bookingLimiter = new RateLimiter(LIMITS.bookingsPerHour, HOUR_MS);
 
-  // Private chats only; flooding users are dropped silently; then attach the session.
+  // Private chats only. Updates over the flood limit are dropped (a pressed button is still
+  // answered, so it stops spinning). Everything after this sees ctx.session.
   bot.use(async (ctx, next) => {
     if (!ctx.from || ctx.chat?.type !== 'private') return;
-    if (!updateLimiter.hit(String(ctx.from.id))) return;
-    ctx.s = store.session(ctx.from.id, pickLang(ctx.from.language_code));
+    if (!updateLimiter.hit(String(ctx.from.id))) {
+      if (ctx.callbackQuery) await ctx.answerCallbackQuery().catch(() => undefined);
+      return;
+    }
+    ctx.session = store.session(ctx.from.id, pickLang(ctx.from.language_code));
     await next();
   });
 
+  bot.use(checkoutGuard());
   bot.use(startFlow(config));
   bot.use(menuFlow());
   bot.use(checkoutFlow({ store, staff, orderLimiter }));
@@ -44,8 +52,10 @@ export function createBot(token: string, config: BotConfig, botInfo?: UserFromGe
   bot.use(staffFlow(staff));
   bot.use(fallbackFlow());
 
-  bot.catch((error) => {
-    console.error(`Error while handling update ${error.ctx.update.update_id}:`, error.error);
+  // Errors in handlers end up here; logging them keeps the bot polling.
+  bot.catch(async ({ ctx, error }) => {
+    console.error(`Error while handling update ${ctx.update.update_id}:`, error);
+    if (ctx.callbackQuery) await answer(ctx);
   });
 
   const sweeper = setInterval(() => {
@@ -66,11 +76,12 @@ export function createBot(token: string, config: BotConfig, botInfo?: UserFromGe
     await bot.api.setMyCommands(commands('uk'), { language_code: 'ru' });
   }
 
+  /** Stops polling (letting the update in progress finish) and every pending timer. */
   async function stop(): Promise<void> {
     clearInterval(sweeper);
     store.stopTimers();
     await bot.stop();
   }
 
-  return { bot, setCommands, stop };
+  return { bot, store, setCommands, stop };
 }

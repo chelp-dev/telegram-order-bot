@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RateLimiter } from '../src/core/rateLimit.js';
-import { availableSlots, bookableDates, isBookable, TIME_SLOTS } from '../src/core/schedule.js';
+import { availableSlots, bookableDates, isBookable } from '../src/core/schedule.js';
+import { TIME_SLOTS } from '../src/data/booking.js';
 import { cleanText, escapeHtml, normalizePhone } from '../src/core/validate.js';
 import { DATA_TTL_MS, Store } from '../src/store.js';
 
@@ -71,22 +72,20 @@ describe('store', () => {
   it('wipes sessions, orders and bookings after 24 hours', () => {
     const store = new Store();
     store.session(1, 'en', 0);
-    store.orders.set('1234', { createdAt: 0 } as never);
-    store.bookings.set('5678', { createdAt: DATA_TTL_MS } as never);
+    store.addOrder({ id: '1234', createdAt: 0 } as never);
+    store.addBooking({ id: '5678', createdAt: DATA_TTL_MS } as never);
     store.sweep(DATA_TTL_MS);
-    expect(store.sessionCount).toBe(0);
-    expect(store.orders.size).toBe(0);
-    expect(store.bookings.size).toBe(1);
+    expect(store.size).toEqual({ sessions: 0, orders: 0, bookings: 1 });
   });
 
   it('evicts the least recently seen session past the cap', () => {
-    const store = new Store(2);
+    const store = new Store({ sessions: 2, orders: 2, bookings: 2 });
     const first = store.session(1, 'en');
     first.cart = { espresso: 1 };
     store.session(2, 'en');
     store.session(1, 'en'); // touch 1, so 2 is now the oldest
     store.session(3, 'en');
-    expect(store.sessionCount).toBe(2);
+    expect(store.size.sessions).toBe(2);
     expect(store.session(1, 'en').cart).toEqual({ espresso: 1 });
   });
 });

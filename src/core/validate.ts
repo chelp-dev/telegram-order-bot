@@ -15,6 +15,7 @@ export function normalizePhone(input: string): string | undefined {
   return `+${digits}`;
 }
 
+/** Escapes text for Telegram's HTML parse mode (safe in element content and in quoted attributes). */
 export function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

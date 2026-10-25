@@ -1,13 +1,18 @@
 // Browsing the menu, changing quantities and viewing the cart.
 import { Composer, InlineKeyboard } from 'grammy';
-import { MAX_QTY_PER_ITEM, cartCount, cartLines, cartTotal, changeQty } from '../core/cart.js';
 import { onButton, show, tr, type BotContext } from '../context.js';
-import { CATEGORIES, CURRENCY, findCategory, formatMoney, itemsIn, type MenuItem } from '../menu.js';
+import { MAX_QTY_PER_ITEM, cartCount, cartLines, cartTotal, changeQty } from '../core/cart.js';
+import { findCategory, formatMoney, itemsIn } from '../core/catalog.js';
+import { CATEGORIES, CURRENCY, type MenuItem } from '../data/menu.js';
 
-/** One keyboard row per item: [−] [name · qty] [+]. `view` tells the handler which screen to redraw. */
+/** Screen to redraw after a quantity change: the cart, or a category by id. */
+const CART_VIEW = 'cart';
+
+/** One keyboard row per item: [−] [name · qty] [+]. Tapping the name adds one, like [+]. */
 function addItemRow(keyboard: InlineKeyboard, ctx: BotContext, item: MenuItem, view: string): void {
-  const qty = ctx.s.cart[item.id] ?? 0;
-  const label = qty > 0 ? `${item.name[ctx.s.lang]} · ${qty}` : item.name[ctx.s.lang];
+  const { cart, lang } = ctx.session;
+  const qty = cart[item.id] ?? 0;
+  const label = qty > 0 ? `${item.name[lang]} · ${qty}` : item.name[lang];
   keyboard
     .text('−', `q:${item.id}:-:${view}`)
     .text(label, `q:${item.id}:+:${view}`)
@@ -18,9 +23,9 @@ function addItemRow(keyboard: InlineKeyboard, ctx: BotContext, item: MenuItem, v
 async function showCategories(ctx: BotContext): Promise<void> {
   const t = tr(ctx);
   const keyboard = new InlineKeyboard();
-  for (const category of CATEGORIES) keyboard.text(category.title[ctx.s.lang], `cat:${category.id}`).row();
+  for (const category of CATEGORIES) keyboard.text(category.title[ctx.session.lang], `cat:${category.id}`).row();
   keyboard
-    .text(t.btnCart(cartCount(ctx.s.cart)), 'nav:cart')
+    .text(t.btnCart(cartCount(ctx.session.cart)), 'nav:cart')
     .row()
     .text(t.btnMainMenu, 'nav:main');
   await show(ctx, t.chooseCategory, keyboard);
@@ -29,20 +34,25 @@ async function showCategories(ctx: BotContext): Promise<void> {
 async function showCategory(ctx: BotContext, categoryId: string): Promise<void> {
   const t = tr(ctx);
   const category = findCategory(categoryId);
-  if (!category) return showCategories(ctx);
-  const currency = CURRENCY[ctx.s.lang];
+  if (!category) {
+    await showCategories(ctx);
+    return;
+  }
+  const { lang } = ctx.session;
+  const currency = CURRENCY[lang];
   const items = itemsIn(category.id);
-  const prices = items.map((item) => `${item.name[ctx.s.lang]} — ${formatMoney(item.price[currency], currency)}`);
+  const prices = items.map((item) => `${item.name[lang]} — ${formatMoney(item.price[currency], currency)}`);
   const keyboard = new InlineKeyboard();
   for (const item of items) addItemRow(keyboard, ctx, item, category.id);
-  keyboard.text(t.btnBack, 'nav:menu').text(t.btnCart(cartCount(ctx.s.cart)), 'nav:cart');
-  await show(ctx, `<b>${category.title[ctx.s.lang]}</b>\n\n${prices.join('\n')}\n\n<i>${t.qtyHint}</i>`, keyboard);
+  keyboard.text(t.btnBack, 'nav:menu').text(t.btnCart(cartCount(ctx.session.cart)), 'nav:cart');
+  await show(ctx, `<b>${category.title[lang]}</b>\n\n${prices.join('\n')}\n\n<i>${t.qtyHint}</i>`, keyboard);
 }
 
-export async function showCart(ctx: BotContext): Promise<void> {
+async function showCart(ctx: BotContext): Promise<void> {
   const t = tr(ctx);
-  const currency = CURRENCY[ctx.s.lang];
-  const lines = cartLines(ctx.s.cart, currency);
+  const { cart, lang } = ctx.session;
+  const currency = CURRENCY[lang];
+  const lines = cartLines(cart, currency);
   if (lines.length === 0) {
     await show(
       ctx,
@@ -54,12 +64,12 @@ export async function showCart(ctx: BotContext): Promise<void> {
   const text = [
     `<b>${t.cartTitle}</b>`,
     '',
-    ...lines.map((line) => `${line.qty} × ${line.item.name[ctx.s.lang]} — ${formatMoney(line.sum, currency)}`),
+    ...lines.map((line) => `${line.qty} × ${line.item.name[lang]} — ${formatMoney(line.sum, currency)}`),
     '',
-    `<b>${t.total(formatMoney(cartTotal(ctx.s.cart, currency), currency))}</b>`,
+    `<b>${t.total(formatMoney(cartTotal(cart, currency), currency))}</b>`,
   ].join('\n');
   const keyboard = new InlineKeyboard();
-  for (const line of lines) addItemRow(keyboard, ctx, line.item, 'cart');
+  for (const line of lines) addItemRow(keyboard, ctx, line.item, CART_VIEW);
   keyboard
     .text(t.btnCheckout, 'co:start')
     .row()
@@ -86,15 +96,15 @@ export function menuFlow(): Composer<BotContext> {
   });
 
   onButton(composer, 'cart:clear', async (ctx) => {
-    ctx.s.cart = {};
+    ctx.session.cart = {};
     await showCart(ctx);
     return tr(ctx).cartCleared;
   });
 
   onButton(composer, /^q:(\w+):([+-]):(\w+)$/, async (ctx, [, itemId = '', sign, view = '']) => {
-    const atMax = sign === '+' && ctx.s.cart[itemId] === MAX_QTY_PER_ITEM;
-    ctx.s.cart = changeQty(ctx.s.cart, itemId, sign === '+' ? 1 : -1);
-    if (view === 'cart') await showCart(ctx);
+    const atMax = sign === '+' && ctx.session.cart[itemId] === MAX_QTY_PER_ITEM;
+    ctx.session.cart = changeQty(ctx.session.cart, itemId, sign === '+' ? 1 : -1);
+    if (view === CART_VIEW) await showCart(ctx);
     else await showCategory(ctx, view);
     return atMax ? tr(ctx).maxQty(MAX_QTY_PER_ITEM) : undefined;
   });

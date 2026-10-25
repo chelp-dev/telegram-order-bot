@@ -1,6 +1,6 @@
-// The cafe's menu. To adapt the bot for another business, edit this file:
-// categories, items, names in both languages and prices.
-import type { Lang } from './i18n/index.js';
+// The cafe's menu: categories, items, names in both languages and prices.
+// To adapt the bot for another business, this is the file to edit first.
+import type { Lang } from '../i18n/index.js';
 
 export type Currency = 'UAH' | 'EUR';
 
@@ -8,11 +8,13 @@ export type Currency = 'UAH' | 'EUR';
 export const CURRENCY: Record<Lang, Currency> = { uk: 'UAH', en: 'EUR' };
 
 export interface Category {
+  /** Used in button data: letters, digits and underscores only. */
   id: string;
   title: Record<Lang, string>;
 }
 
 export interface MenuItem {
+  /** Used in button data: letters, digits and underscores only. */
   id: string;
   category: string;
   name: Record<Lang, string>;
@@ -56,24 +58,3 @@ export const MENU: readonly MenuItem[] = [
   },
   { id: 'croissant', category: 'desserts', name: { uk: 'Круасан', en: 'Croissant' }, price: { UAH: 6000, EUR: 280 } },
 ];
-
-const ITEMS_BY_ID = new Map(MENU.map((item) => [item.id, item]));
-const CATEGORIES_BY_ID = new Map(CATEGORIES.map((category) => [category.id, category]));
-
-export function findItem(id: string): MenuItem | undefined {
-  return ITEMS_BY_ID.get(id);
-}
-
-export function findCategory(id: string): Category | undefined {
-  return CATEGORIES_BY_ID.get(id);
-}
-
-export function itemsIn(categoryId: string): MenuItem[] {
-  return MENU.filter((item) => item.category === categoryId);
-}
-
-export function formatMoney(minor: number, currency: Currency): string {
-  const major = minor / 100;
-  const amount = Number.isInteger(major) ? String(major) : major.toFixed(2);
-  return currency === 'UAH' ? `${amount} ₴` : `€${major.toFixed(2)}`;
-}
