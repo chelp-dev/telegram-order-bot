@@ -1,7 +1,7 @@
 import { Bot } from 'grammy';
 import type { UserFromGetMe } from 'grammy/types';
 import type { BotConfig } from './config.js';
-import { answer, type BotContext } from './context.js';
+import type { BotContext } from './context.js';
 import { RateLimiter } from './core/rateLimit.js';
 import { bookingFlow } from './flows/booking.js';
 import { checkoutFlow, checkoutGuard } from './flows/checkout.js';
@@ -53,9 +53,8 @@ export function createBot(token: string, config: BotConfig, botInfo?: UserFromGe
   bot.use(fallbackFlow());
 
   // Errors in handlers end up here; logging them keeps the bot polling.
-  bot.catch(async ({ ctx, error }) => {
+  bot.catch(({ ctx, error }) => {
     console.error(`Error while handling update ${ctx.update.update_id}:`, error);
-    if (ctx.callbackQuery) await answer(ctx);
   });
 
   const sweeper = setInterval(() => {

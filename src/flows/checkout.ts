@@ -82,7 +82,7 @@ async function askComment(ctx: BotContext): Promise<void> {
 }
 
 /** The order as the session describes it, or undefined if the draft is incomplete or the cart is empty. */
-export function draftOrder(session: Session): OrderDetails | undefined {
+function draftOrder(session: Session): OrderDetails | undefined {
   const { checkout, cart, lang } = session;
   const { fulfilment, name, phone, address, comment } = checkout;
   if (!fulfilment || !name || !phone || cartCount(cart) === 0) return undefined;
