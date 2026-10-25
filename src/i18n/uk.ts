@@ -73,8 +73,7 @@ export const uk = {
   staffBanner: '👀 Так це бачить персонал кав’ярні',
   staffNewOrder: 'Нове замовлення',
   staffNewBooking: 'Нове бронювання',
-  staffDemoNote: (seconds: number) =>
-    `У демо статус змінюється сам кожні ~${seconds} с. Або натискайте кнопки нижче.`,
+  staffDemoNote: (seconds: number) => `У демо статус змінюється сам кожні ~${seconds} с. Або натискайте кнопки нижче.`,
   btnAccept: 'Прийняти',
   btnCooking: 'Готуємо',
   btnOnTheWay: 'В дорозі',

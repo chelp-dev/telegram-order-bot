@@ -46,12 +46,12 @@ The image is multi-stage, runs as the non-root `node` user and holds only produc
 
 ### Settings (`.env`)
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `BOT_TOKEN` | — | Token from BotFather (required) |
-| `AUTO_ADVANCE_SECONDS` | `12` | Seconds between automatic status changes; `0` turns them off |
-| `CAFE_TIMEZONE` | `Europe/Kyiv` | Time zone for booking dates and slots |
-| `REPO_URL` | placeholder | Link shown in "About this demo" |
+| Variable               | Default       | Meaning                                                      |
+| ---------------------- | ------------- | ------------------------------------------------------------ |
+| `BOT_TOKEN`            | —             | Token from BotFather (required)                              |
+| `AUTO_ADVANCE_SECONDS` | `12`          | Seconds between automatic status changes; `0` turns them off |
+| `CAFE_TIMEZONE`        | `Europe/Kyiv` | Time zone for booking dates and slots                        |
+| `REPO_URL`             | placeholder   | Link shown in "About this demo"                              |
 
 ## Adapt it for your business
 

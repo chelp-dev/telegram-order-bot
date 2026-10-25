@@ -12,7 +12,8 @@ describe('i18n', () => {
       const ukValue = dict.uk[key];
       const enValue = dict.en[key];
       expect(typeof enValue, key).toBe(typeof ukValue);
-      if (typeof ukValue === 'function' && typeof enValue === 'function') expect(enValue.length, key).toBe(ukValue.length);
+      if (typeof ukValue === 'function' && typeof enValue === 'function')
+        expect(enValue.length, key).toBe(ukValue.length);
       if (typeof ukValue === 'string') expect(ukValue.trim(), key).not.toBe('');
     }
   });

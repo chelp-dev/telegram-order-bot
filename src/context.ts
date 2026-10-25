@@ -46,7 +46,7 @@ export async function show(ctx: BotContext, text: string, keyboard?: InlineKeybo
 export function onButton(
   composer: Composer<BotContext>,
   trigger: string | RegExp,
-  handler: (ctx: BotContext, match: string[]) => Promise<string | void>,
+  handler: (ctx: BotContext, match: string[]) => Promise<string | undefined>,
 ): void {
   composer.callbackQuery(trigger, async (ctx) => {
     const match = typeof ctx.match === 'string' ? [ctx.match] : Array.from(ctx.match);

@@ -30,21 +30,29 @@ export function bookingFlow({ store, staff, bookingLimiter, config }: BookingDep
   const composer = new Composer<BotContext>();
   const { timeZone } = config;
 
-  async function showDates(ctx: BotContext): Promise<string | void> {
+  async function showDates(ctx: BotContext): Promise<string | undefined> {
     const t = tr(ctx);
     const dates = bookableDates(new Date(), timeZone);
     if (dates.length === 0) return t.noSlots;
     ctx.s.booking = {};
-    const keyboard = grid(new InlineKeyboard(), dates.map((date) => ({ label: formatDate(date, t.locale), data: `bk:d:${date}` })), 2);
+    const keyboard = grid(
+      new InlineKeyboard(),
+      dates.map((date) => ({ label: formatDate(date, t.locale), data: `bk:d:${date}` })),
+      2,
+    );
     await show(ctx, t.chooseDate, keyboard.text(t.btnMainMenu, 'nav:main'));
   }
 
-  async function showTimes(ctx: BotContext, date: string): Promise<string | void> {
+  async function showTimes(ctx: BotContext, date: string): Promise<string | undefined> {
     const t = tr(ctx);
     const slots = bookableDates(new Date(), timeZone).includes(date) ? availableSlots(date, new Date(), timeZone) : [];
     if (slots.length === 0) return showDates(ctx);
     ctx.s.booking = { date };
-    const keyboard = grid(new InlineKeyboard(), slots.map((slot) => ({ label: slot, data: `bk:t:${slot.replace(':', '')}` })), 4);
+    const keyboard = grid(
+      new InlineKeyboard(),
+      slots.map((slot) => ({ label: slot, data: `bk:t:${slot.replace(':', '')}` })),
+      4,
+    );
     await show(ctx, t.chooseTime(formatDate(date, t.locale)), keyboard.text(t.btnBack, 'nav:book'));
   }
 
@@ -58,7 +66,11 @@ export function bookingFlow({ store, staff, bookingLimiter, config }: BookingDep
     const time = `${hh}:${mm}`;
     if (!date || !isBookable(date, time, new Date(), timeZone)) return showDates(ctx);
     ctx.s.booking = { date, time };
-    const keyboard = grid(new InlineKeyboard(), GUEST_OPTIONS.map((n) => ({ label: String(n), data: `bk:g:${n}` })), 6);
+    const keyboard = grid(
+      new InlineKeyboard(),
+      GUEST_OPTIONS.map((n) => ({ label: String(n), data: `bk:g:${n}` })),
+      6,
+    );
     await show(ctx, t.chooseGuests(formatDate(date, t.locale), time), keyboard.text(t.btnBack, `bk:d:${date}`));
   });
 

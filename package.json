@@ -1,27 +1,53 @@
 {
-  "name": "chelp-demo-bot",
+  "name": "telegram-order-bot",
   "version": "1.0.0",
-  "description": "Demo Telegram order bot for a cafe: bilingual menu, cart, checkout, table booking and a staff view. Built with grammY.",
+  "description": "Open-source Telegram order bot for a cafe: bilingual menu, cart, checkout, table booking and a staff view. grammY + TypeScript.",
+  "keywords": [
+    "telegram",
+    "telegram-bot",
+    "grammy",
+    "typescript",
+    "cafe",
+    "restaurant",
+    "ordering",
+    "booking"
+  ],
+  "homepage": "https://github.com/chelp-dev/telegram-order-bot#readme",
+  "bugs": "https://github.com/chelp-dev/telegram-order-bot/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chelp-dev/telegram-order-bot.git"
+  },
   "license": "MIT",
+  "author": "chelp.dev (https://chelp.dev)",
   "type": "module",
   "private": true,
   "engines": {
-    "node": ">=22.9"
+    "node": ">=22.13"
   },
   "scripts": {
-    "dev": "tsx watch --env-file=.env src/index.ts",
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node --env-file-if-exists=.env dist/index.js",
+    "test": "vitest run",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "grammy": "^1.38.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
     "tsx": "^4.20.0",
-    "typescript": "^5.9.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5"
   }
 }

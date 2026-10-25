@@ -16,10 +16,8 @@ export interface CartLine {
 export function changeQty(cart: Cart, itemId: string, delta: number): Cart {
   if (!findItem(itemId)) return cart;
   const qty = Math.min(MAX_QTY_PER_ITEM, Math.max(0, (cart[itemId] ?? 0) + delta));
-  const next = { ...cart };
-  if (qty === 0) delete next[itemId];
-  else next[itemId] = qty;
-  return next;
+  const next = { ...cart, [itemId]: qty };
+  return Object.fromEntries(Object.entries(next).filter(([, n]) => n > 0));
 }
 
 /** Cart lines in menu order, so the cart always reads the same way as the menu. */

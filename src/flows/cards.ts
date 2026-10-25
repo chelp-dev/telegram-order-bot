@@ -30,9 +30,11 @@ export function orderStatusLabel(t: Dict, status: OrderStatus, fulfilment: Fulfi
 
 /** Items, total and contact details; shared by the checkout summary and both order cards. */
 export function orderDetails(t: Dict, order: OrderDetails): string {
-  const items = order.lines.map((line) => `${line.qty} × ${escapeHtml(line.name)} — ${formatMoney(line.sum, order.currency)}`);
+  const items = order.lines.map(
+    (line) => `${line.qty} × ${escapeHtml(line.name)} — ${formatMoney(line.sum, order.currency)}`,
+  );
   const contact = [
-    `${order.fulfilment === 'delivery' ? t.delivery : t.pickup}`,
+    order.fulfilment === 'delivery' ? t.delivery : t.pickup,
     `${t.labelName}: ${escapeHtml(order.name)}`,
     `${t.labelPhone}: ${escapeHtml(order.phone)}`,
   ];
@@ -65,7 +67,8 @@ export function staffOrderCard(order: Order, autoAdvanceMs: number): Card {
     keyboard.text(buttonLabel[s], `st:${order.id}:${s}`);
     if (i % 2 === 1) keyboard.row();
   });
-  const note = remaining.length > 0 && autoAdvanceMs > 0 ? `\n\n<i>${t.staffDemoNote(Math.round(autoAdvanceMs / 1000))}</i>` : '';
+  const note =
+    remaining.length > 0 && autoAdvanceMs > 0 ? `\n\n<i>${t.staffDemoNote(Math.round(autoAdvanceMs / 1000))}</i>` : '';
   return {
     text: `<i>${t.staffBanner}</i>\n\n<b>${t.staffNewOrder} · ${t.orderTitle(order.id)}</b>\n\n${orderDetails(t, order)}\n\n${t.statusLabel}: <b>${status}</b>${note}`,
     keyboard: remaining.length > 0 ? keyboard : undefined,
@@ -82,7 +85,9 @@ export function bookingDetails(t: Dict, booking: Pick<Booking, 'date' | 'time' |
 
 export function customerBookingCard(booking: Booking): Card {
   const t = dict[booking.lang];
-  const hint = { pending: '', confirmed: `\n${t.bookingConfirmedHint}`, declined: `\n${t.bookingDeclinedHint}` }[booking.status];
+  const hint = { pending: '', confirmed: `\n${t.bookingConfirmedHint}`, declined: `\n${t.bookingDeclinedHint}` }[
+    booking.status
+  ];
   return {
     text: `<b>${t.cafeName}</b>\n<b>${t.bookingTitle(booking.id)}</b>\n\n${bookingDetails(t, booking)}\n\n${t.statusLabel}: <b>${t[`booking_${booking.status}`]}</b>${hint}`,
   };
@@ -98,7 +103,9 @@ export function staffBookingCard(booking: Booking, autoAdvanceMs: number): Card 
       `${t.labelName}: ${escapeHtml(booking.name)}\n${bookingDetails(t, booking)}\n\n` +
       `${t.statusLabel}: <b>${t[`booking_${booking.status}`]}</b>${note}`,
     keyboard: pending
-      ? new InlineKeyboard().text(t.btnApprove, `bs:${booking.id}:confirmed`).text(t.btnDecline, `bs:${booking.id}:declined`)
+      ? new InlineKeyboard()
+          .text(t.btnApprove, `bs:${booking.id}:confirmed`)
+          .text(t.btnDecline, `bs:${booking.id}:declined`)
       : undefined,
   };
 }

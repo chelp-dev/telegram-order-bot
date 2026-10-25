@@ -34,11 +34,26 @@ export const MENU: readonly MenuItem[] = [
 
   { id: 'syrnyky', category: 'breakfast', name: { uk: 'Сирники', en: 'Syrnyky' }, price: { UAH: 14500, EUR: 650 } },
   { id: 'shakshuka', category: 'breakfast', name: { uk: 'Шакшука', en: 'Shakshuka' }, price: { UAH: 16500, EUR: 750 } },
-  { id: 'avotoast', category: 'breakfast', name: { uk: 'Тост з авокадо', en: 'Avocado toast' }, price: { UAH: 17500, EUR: 790 } },
-  { id: 'granola', category: 'breakfast', name: { uk: 'Гранола', en: 'Granola bowl' }, price: { UAH: 13000, EUR: 590 } },
+  {
+    id: 'avotoast',
+    category: 'breakfast',
+    name: { uk: 'Тост з авокадо', en: 'Avocado toast' },
+    price: { UAH: 17500, EUR: 790 },
+  },
+  {
+    id: 'granola',
+    category: 'breakfast',
+    name: { uk: 'Гранола', en: 'Granola bowl' },
+    price: { UAH: 13000, EUR: 590 },
+  },
 
   { id: 'medovyk', category: 'desserts', name: { uk: 'Медовик', en: 'Honey cake' }, price: { UAH: 9500, EUR: 420 } },
-  { id: 'cheesecake', category: 'desserts', name: { uk: 'Чизкейк', en: 'Cheesecake' }, price: { UAH: 11000, EUR: 480 } },
+  {
+    id: 'cheesecake',
+    category: 'desserts',
+    name: { uk: 'Чизкейк', en: 'Cheesecake' },
+    price: { UAH: 11000, EUR: 480 },
+  },
   { id: 'croissant', category: 'desserts', name: { uk: 'Круасан', en: 'Croissant' }, price: { UAH: 6000, EUR: 280 } },
 ];
 

@@ -27,8 +27,8 @@ describe('order status rules', () => {
 function fakeApi() {
   let nextId = 100;
   return {
-    sendMessage: vi.fn(async () => ({ message_id: nextId++ })),
-    editMessageText: vi.fn(async () => true),
+    sendMessage: vi.fn(() => Promise.resolve({ message_id: nextId++ })),
+    editMessageText: vi.fn(() => Promise.resolve(true)),
   };
 }
 
@@ -95,7 +95,15 @@ describe('Staff', () => {
     const store = new Store();
     const staff = new Staff(fakeApi() as never, store, 10_000);
     const base: Omit<Booking, 'id'> = {
-      userId: 1, chatId: 1, lang: 'uk', date: '2026-10-27', time: '12:00', guests: 2, name: 'Test', status: 'pending', createdAt: Date.now(),
+      userId: 1,
+      chatId: 1,
+      lang: 'uk',
+      date: '2026-10-27',
+      time: '12:00',
+      guests: 2,
+      name: 'Test',
+      status: 'pending',
+      createdAt: Date.now(),
     };
     const auto: Booking = { ...base, id: store.newId() };
     const manual: Booking = { ...base, id: store.newId() };

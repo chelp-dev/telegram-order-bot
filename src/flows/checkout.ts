@@ -54,7 +54,8 @@ function draftOrder(ctx: BotContext, store: Store): Order | undefined {
   const { checkout, cart, lang } = ctx.s;
   const { fulfilment, name, phone, address, comment } = checkout;
   const currency = CURRENCY[lang];
-  if (!fulfilment || !name || !phone || (fulfilment === 'delivery' && !address) || cartCount(cart) === 0) return undefined;
+  if (!fulfilment || !name || !phone || (fulfilment === 'delivery' && !address) || cartCount(cart) === 0)
+    return undefined;
   if (!ctx.chat || !ctx.from) return undefined;
   return {
     id: store.newId(),
@@ -146,7 +147,10 @@ export function checkoutFlow({ store, staff, orderLimiter }: CheckoutDeps): Comp
   composer.on('message:contact', async (ctx, next) => {
     if (ctx.s.step !== 'phone') return next();
     const phone = normalizePhone(ctx.message.contact.phone_number);
-    if (!phone) return void (await ctx.reply(tr(ctx).badPhone));
+    if (!phone) {
+      await ctx.reply(tr(ctx).badPhone);
+      return;
+    }
     await acceptPhone(ctx, phone);
   });
 
@@ -156,24 +160,36 @@ export function checkoutFlow({ store, staff, orderLimiter }: CheckoutDeps): Comp
     switch (ctx.s.step) {
       case 'name': {
         const name = cleanText(text, TEXT_LIMITS.name);
-        if (!name) return void (await ctx.reply(t.tooLong(TEXT_LIMITS.name)));
+        if (!name) {
+          await ctx.reply(t.tooLong(TEXT_LIMITS.name));
+          return;
+        }
         ctx.s.checkout.name = name;
         return askPhone(ctx);
       }
       case 'phone': {
         const phone = normalizePhone(text);
-        if (!phone) return void (await ctx.reply(t.badPhone));
+        if (!phone) {
+          await ctx.reply(t.badPhone);
+          return;
+        }
         return acceptPhone(ctx, phone);
       }
       case 'address': {
         const address = cleanText(text, TEXT_LIMITS.address);
-        if (!address) return void (await ctx.reply(t.tooLong(TEXT_LIMITS.address)));
+        if (!address) {
+          await ctx.reply(t.tooLong(TEXT_LIMITS.address));
+          return;
+        }
         ctx.s.checkout.address = address;
         return askComment(ctx);
       }
       case 'comment': {
         const comment = cleanText(text, TEXT_LIMITS.comment);
-        if (!comment) return void (await ctx.reply(t.tooLong(TEXT_LIMITS.comment)));
+        if (!comment) {
+          await ctx.reply(t.tooLong(TEXT_LIMITS.comment));
+          return;
+        }
         ctx.s.checkout.comment = comment;
         return showSummary(ctx, store);
       }

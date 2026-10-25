@@ -16,7 +16,9 @@ const { bot, setCommands, stop } = createBot(token, {
 });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.once(signal, () => void stop());
+  process.once(signal, () => {
+    void stop();
+  });
 }
 
 await setCommands();

@@ -8,14 +8,21 @@ import { CATEGORIES, CURRENCY, findCategory, formatMoney, itemsIn, type MenuItem
 function addItemRow(keyboard: InlineKeyboard, ctx: BotContext, item: MenuItem, view: string): void {
   const qty = ctx.s.cart[item.id] ?? 0;
   const label = qty > 0 ? `${item.name[ctx.s.lang]} · ${qty}` : item.name[ctx.s.lang];
-  keyboard.text('−', `q:${item.id}:-:${view}`).text(label, `q:${item.id}:+:${view}`).text('+', `q:${item.id}:+:${view}`).row();
+  keyboard
+    .text('−', `q:${item.id}:-:${view}`)
+    .text(label, `q:${item.id}:+:${view}`)
+    .text('+', `q:${item.id}:+:${view}`)
+    .row();
 }
 
 async function showCategories(ctx: BotContext): Promise<void> {
   const t = tr(ctx);
   const keyboard = new InlineKeyboard();
   for (const category of CATEGORIES) keyboard.text(category.title[ctx.s.lang], `cat:${category.id}`).row();
-  keyboard.text(t.btnCart(cartCount(ctx.s.cart)), 'nav:cart').row().text(t.btnMainMenu, 'nav:main');
+  keyboard
+    .text(t.btnCart(cartCount(ctx.s.cart)), 'nav:cart')
+    .row()
+    .text(t.btnMainMenu, 'nav:main');
   await show(ctx, t.chooseCategory, keyboard);
 }
 
@@ -37,7 +44,11 @@ export async function showCart(ctx: BotContext): Promise<void> {
   const currency = CURRENCY[ctx.s.lang];
   const lines = cartLines(ctx.s.cart, currency);
   if (lines.length === 0) {
-    await show(ctx, t.cartEmpty, new InlineKeyboard().text(t.btnToMenu, 'nav:menu').row().text(t.btnMainMenu, 'nav:main'));
+    await show(
+      ctx,
+      t.cartEmpty,
+      new InlineKeyboard().text(t.btnToMenu, 'nav:menu').row().text(t.btnMainMenu, 'nav:main'),
+    );
     return;
   }
   const text = [

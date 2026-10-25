@@ -13,7 +13,9 @@ export function localDate(now: Date, timeZone: string): string {
 }
 
 export function localTime(now: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(now);
+  return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(
+    now,
+  );
 }
 
 /** Slots still bookable on `date`: all of them on future days, only later ones today. */
@@ -39,5 +41,7 @@ export function isBookable(date: string, time: string, now: Date, timeZone: stri
 /** Human-readable date, e.g. "пн, 27 жовт." or "Mon 27 Oct". */
 export function formatDate(date: string, locale: string): string {
   const noonUtc = new Date(`${date}T12:00:00Z`);
-  return new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(noonUtc);
+  return new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
+    noonUtc,
+  );
 }

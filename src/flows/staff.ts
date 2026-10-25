@@ -55,7 +55,9 @@ export class Staff {
   private scheduleOrder(order: Order): void {
     const next = nextStatus(order.status);
     clearTimeout(order.timer);
-    if (next) this.schedule(order, () => this.advanceOrder(order.id, next));
+    if (next) {
+      this.schedule(order, () => this.advanceOrder(order.id, next));
+    }
   }
 
   private schedule(record: Order | Booking, step: () => Promise<unknown>): void {
@@ -68,12 +70,24 @@ export class Staff {
 
   private async renderOrder(order: Order): Promise<void> {
     order.customerMessageId = await this.upsert(order.chatId, order.customerMessageId, customerOrderCard(order));
-    order.staffMessageId = await this.upsert(order.chatId, order.staffMessageId, staffOrderCard(order, this.autoAdvanceMs));
+    order.staffMessageId = await this.upsert(
+      order.chatId,
+      order.staffMessageId,
+      staffOrderCard(order, this.autoAdvanceMs),
+    );
   }
 
   private async renderBooking(booking: Booking): Promise<void> {
-    booking.customerMessageId = await this.upsert(booking.chatId, booking.customerMessageId, customerBookingCard(booking));
-    booking.staffMessageId = await this.upsert(booking.chatId, booking.staffMessageId, staffBookingCard(booking, this.autoAdvanceMs));
+    booking.customerMessageId = await this.upsert(
+      booking.chatId,
+      booking.customerMessageId,
+      customerBookingCard(booking),
+    );
+    booking.staffMessageId = await this.upsert(
+      booking.chatId,
+      booking.staffMessageId,
+      staffBookingCard(booking, this.autoAdvanceMs),
+    );
   }
 
   /** Edits the card in place; sends it as a new message if there is none yet or it was deleted. */
@@ -101,7 +115,10 @@ export function staffFlow(staff: Staff): Composer<BotContext> {
   });
 
   onButton(composer, /^bs:(\d+):(confirmed|declined)$/, async (ctx, [, id = '', decision]) => {
-    return resultNotice(ctx, await staff.decideBooking(id, decision === 'declined' ? 'declined' : 'confirmed', ctx.from?.id));
+    return resultNotice(
+      ctx,
+      await staff.decideBooking(id, decision === 'declined' ? 'declined' : 'confirmed', ctx.from?.id),
+    );
   });
 
   return composer;
