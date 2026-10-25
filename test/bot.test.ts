@@ -1,95 +1,13 @@
-// End-to-end walk through the bot with the Telegram API replaced by a recorder.
+// End-to-end walks through the bot, with the Telegram API replaced by a recorder.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createBot } from '../src/bot.js';
+import { setup } from './harness.js';
 
-const USER = { id: 42, is_bot: false, first_name: 'Olena', language_code: 'uk' };
-const CHAT = { id: 42, type: 'private' as const, first_name: 'Olena' };
-const BOT_INFO = {
-  id: 1,
-  is_bot: true as const,
-  first_name: 'Demo',
-  username: 'demo_bot',
-  can_join_groups: false,
-  can_read_all_group_messages: false,
-  supports_inline_queries: false,
-  can_connect_to_business: false,
-  has_main_web_app: false,
-  has_topics_enabled: false,
-  allows_users_to_create_topics: false,
-};
+afterEach(() => {
+  vi.useRealTimers();
+});
 
-interface Call {
-  method: string;
-  payload: Record<string, unknown>;
-}
-
-function setup() {
-  const { bot, stop } = createBot(
-    'test-token',
-    {
-      autoAdvanceMs: 10_000,
-      timeZone: 'Europe/Kyiv',
-      siteUrl: 'https://chelp.dev',
-      repoUrl: 'https://example.com/repo',
-    },
-    BOT_INFO as never,
-  );
-  const calls: Call[] = [];
-  let messageId = 1000;
-  bot.api.config.use((_prev, method, payload) => {
-    calls.push({ method, payload: payload });
-    const result = method === 'sendMessage' ? { message_id: messageId++, date: 0, chat: CHAT } : true;
-    return Promise.resolve({ ok: true, result } as never);
-  });
-
-  let updateId = 1;
-  const text = (value: string) => {
-    const entities = value.startsWith('/')
-      ? [{ type: 'bot_command' as const, offset: 0, length: value.length }]
-      : undefined;
-    return bot.handleUpdate({
-      update_id: updateId++,
-      message: { message_id: updateId, date: 0, chat: CHAT, from: USER, text: value, entities },
-    });
-  };
-  const press = (data: string, onMessage = 500) =>
-    bot.handleUpdate({
-      update_id: updateId++,
-      callback_query: {
-        id: String(updateId),
-        from: USER,
-        chat_instance: 'x',
-        data,
-        message: { message_id: onMessage, date: 0, chat: CHAT, from: BOT_INFO, text: '...' },
-      },
-    });
-  const contact = (phone: string) =>
-    bot.handleUpdate({
-      update_id: updateId++,
-      message: {
-        message_id: updateId,
-        date: 0,
-        chat: CHAT,
-        from: USER,
-        contact: { phone_number: phone, first_name: 'Olena', user_id: 42 },
-      },
-    });
-  const lastText = () =>
-    String(calls.filter((c) => c.method === 'sendMessage' || c.method === 'editMessageText').at(-1)?.payload.text);
-  const toasts = () =>
-    calls
-      .filter((c) => c.method === 'answerCallbackQuery')
-      .map((c) => c.payload.text)
-      .filter(Boolean);
-  /** First capture of `pattern` anywhere in what the bot sent (e.g. a callback_data value). */
-  const firstMatch = (pattern: RegExp) => pattern.exec(JSON.stringify(calls))?.[1] ?? '';
-  return { calls, text, press, contact, lastText, toasts, firstMatch, stop };
-}
-
-describe('bot flow', () => {
-  afterEach(() => vi.useRealTimers());
-
-  it('orders coffee for pickup and walks the status loop', async () => {
+describe('ordering', () => {
+  it('orders coffee for pickup and plays the whole status loop', async () => {
     vi.useFakeTimers();
     const bot = setup();
 
@@ -111,54 +29,34 @@ describe('bot flow', () => {
 
     await bot.press('co:ok', 777);
     expect(bot.toasts()).toContain('Замовлення прийнято!');
-    const staffCard = bot.calls.find((c) => c.method === 'sendMessage' && String(c.payload.text).includes('персонал'));
-    expect(staffCard).toBeDefined();
-    expect(
-      bot.calls.some(
-        (c) =>
-          c.method === 'editMessageText' && c.payload.message_id === 777 && String(c.payload.text).includes('Нове'),
-      ),
-    ).toBe(true);
+    expect(bot.sent().some((c) => String(c.payload.text).includes('персонал'))).toBe(true);
+    expect(String(bot.editsOf(777).at(-1)?.payload.text)).toContain('Нове');
 
     await vi.advanceTimersByTimeAsync(40_000);
-    const customerEdits = bot.calls.filter((c) => c.method === 'editMessageText' && c.payload.message_id === 777);
-    expect(String(customerEdits.at(-1)?.payload.text)).toContain('Виконано');
+    expect(String(bot.editsOf(777).at(-1)?.payload.text)).toContain('Виконано');
 
     await bot.press('lang');
     expect(bot.lastText()).toContain('Hi Olena');
     await bot.stop();
   });
 
-  it('books a table and lets the staff decline it', async () => {
+  it('asks for an address on delivery and escapes it in the summary', async () => {
     const bot = setup();
-    await bot.text('/lang'); // switch to English
-    await bot.press('bk:d:2099-01-01'); // outside the 7-day window: back to the date list
-    expect(bot.lastText()).toContain('Which day');
-
-    const date = bot.firstMatch(/bk:d:(\d{4}-\d{2}-\d{2})/);
-    await bot.press(`bk:d:${date}`);
-    await bot.press(`bk:t:${bot.firstMatch(/bk:t:(\d{4})/)}`);
-    await bot.press('bk:g:4');
-    expect(bot.lastText()).toContain('Guests: 4');
-    await bot.press('bk:ok', 900);
-
-    const staffCard = bot.calls.find(
-      (c) => c.method === 'sendMessage' && String(c.payload.text).includes('cafe staff see'),
-    );
-    const id = /Booking #(\d+)/.exec(String(staffCard?.payload.text))?.[1];
-    await bot.press(`bs:${id}:declined`, 1000);
-    expect(
-      bot.calls.some(
-        (c) =>
-          c.method === 'editMessageText' && c.payload.message_id === 900 && String(c.payload.text).includes('Declined'),
-      ),
-    ).toBe(true);
+    await bot.press('q:espresso:+:coffee');
+    await bot.press('co:start');
+    await bot.press('co:delivery');
+    await bot.press('co:tgname');
+    await bot.text('+380 67 123 45 67');
+    expect(bot.lastText()).toContain('Куди доставити?');
+    await bot.text('Хрещатик 1, <b>кв. 2</b>');
+    await bot.text('без цукру');
+    expect(bot.lastText()).toContain('Хрещатик 1, &lt;b&gt;кв. 2&lt;/b&gt;');
+    expect(bot.lastText()).toContain('Коментар: без цукру');
     await bot.stop();
   });
 
-  it('rejects junk input politely', async () => {
+  it('rejects over-long names and things that are not phone numbers', async () => {
     const bot = setup();
-    await bot.press('cat:coffee');
     await bot.press('q:espresso:+:coffee');
     await bot.press('co:start');
     await bot.press('co:delivery');
@@ -167,8 +65,145 @@ describe('bot flow', () => {
     await bot.text('Олена');
     await bot.text('not a phone');
     expect(bot.lastText()).toContain('не номер телефону');
+    await bot.stop();
+  });
+
+  it('does not start checkout with an empty cart', async () => {
+    const bot = setup();
+    await bot.press('co:start');
+    expect(bot.toasts()).toContain('Кошик порожній. Зазирніть у меню.');
+    await bot.stop();
+  });
+
+  it('limits orders per hour', async () => {
+    vi.useFakeTimers();
+    const bot = setup({ autoAdvanceMs: 0 });
+    for (let i = 0; i < 6; i++) {
+      vi.advanceTimersByTime(60_000); // stay under the per-minute flood limit
+      await bot.press('q:espresso:+:coffee');
+      await bot.press('co:start');
+      await bot.press('co:pickup');
+      await bot.press('co:tgname');
+      await bot.text('+380671234567');
+      await bot.press('co:skip');
+      await bot.press('co:ok');
+    }
+    expect(bot.toasts().filter((t) => t === 'Замовлення прийнято!')).toHaveLength(5);
+    expect(bot.toasts().at(-1)).toContain('Забагато замовлень');
+    await bot.stop();
+  });
+});
+
+describe('leaving checkout', () => {
+  it('stops waiting for a name once the user navigates elsewhere', async () => {
+    const bot = setup();
+    await bot.press('q:espresso:+:coffee');
+    await bot.press('co:start');
+    await bot.press('co:pickup');
+    await bot.press('nav:main');
+    await bot.text('hello');
+    expect(bot.lastText()).toContain('Скористайтеся кнопками меню');
+    await bot.stop();
+  });
+
+  it('hides the share-contact keyboard when /start interrupts the phone step', async () => {
+    const bot = setup();
+    await bot.press('q:espresso:+:coffee');
+    await bot.press('co:start');
+    await bot.press('co:pickup');
+    await bot.press('co:tgname');
+    await bot.text('/start');
+    expect(bot.calls.some((c) => JSON.stringify(c.payload.reply_markup) === '{"remove_keyboard":true}')).toBe(true);
+    expect(bot.lastText()).toContain('Привіт, Olena');
+    await bot.stop();
+  });
+
+  it('keeps the checkout when the language is switched', async () => {
+    const bot = setup();
+    await bot.press('q:espresso:+:coffee');
+    await bot.press('co:start');
+    await bot.press('co:pickup');
+    await bot.text('/lang');
+    await bot.text('Olena');
+    expect(bot.lastText()).toContain('phone number');
+    await bot.stop();
+  });
+});
+
+describe('booking', () => {
+  it('books a table and lets the staff decline it', async () => {
+    const bot = setup();
+    await bot.text('/lang');
+    await bot.press('bk:d:2099-01-01'); // outside the booking window: back to the date list
+    expect(bot.lastText()).toContain('Which day');
+
+    await bot.press(`bk:d:${bot.firstMatch(/bk:d:(\d{4}-\d{2}-\d{2})/)}`);
+    await bot.press(`bk:t:${bot.firstMatch(/bk:t:(\d{4})/)}`);
+    await bot.press('bk:g:4');
+    expect(bot.lastText()).toContain('Guests: 4');
+    await bot.press('bk:ok', 900);
+
+    const staffCard = bot.sent().find((c) => String(c.payload.text).includes('cafe staff see'));
+    const id = /Booking #(\d+)/.exec(String(staffCard?.payload.text))?.[1];
+    await bot.press(`bs:${id}:declined`, 1000);
+    expect(String(bot.editsOf(900).at(-1)?.payload.text)).toContain('Declined');
+    await bot.stop();
+  });
+
+  it('ignores a guest count that was never offered', async () => {
+    const bot = setup();
+    await bot.press('nav:book');
+    await bot.press(`bk:d:${bot.firstMatch(/bk:d:(\d{4}-\d{2}-\d{2})/)}`);
+    await bot.press(`bk:t:${bot.firstMatch(/bk:t:(\d{4})/)}`);
+    await bot.press('bk:g:40');
+    expect(bot.lastText()).toContain('На який день');
+    await bot.stop();
+  });
+});
+
+describe('buttons', () => {
+  it('answers every callback query, including stale and unknown ones', async () => {
+    const bot = setup();
     await bot.press('st:9999:done');
-    expect(bot.toasts()).toContain('Ця кнопка застаріла. Натисніть /start');
+    await bot.press('something:old');
+    expect(bot.answers()).toHaveLength(2);
+    expect(bot.toasts()).toEqual(['Ця кнопка застаріла. Натисніть /start', 'Ця кнопка застаріла. Натисніть /start']);
+    await bot.stop();
+  });
+
+  it('still answers the button when the handler fails, without sending a duplicate screen', async () => {
+    const bot = setup();
+    bot.failNext('editMessageText', 429, 'Too Many Requests: retry after 5');
+    // In production the error reaches bot.catch; handleUpdate rethrows it to the caller.
+    await expect(bot.press('nav:menu')).rejects.toThrow('429');
+    expect(bot.answers()).toHaveLength(1);
+    expect(bot.calls.filter((c) => c.method === 'sendMessage')).toHaveLength(0);
+    await bot.stop();
+  });
+
+  it('sends a new screen when the old message can no longer be edited', async () => {
+    const bot = setup();
+    bot.failNext('editMessageText', 400, "Bad Request: message can't be edited");
+    await bot.press('nav:menu');
+    expect(bot.calls.at(-2)?.method).toBe('sendMessage');
+    await bot.stop();
+  });
+
+  it('treats "message is not modified" as success', async () => {
+    const bot = setup();
+    bot.failNext('editMessageText', 400, 'Bad Request: message is not modified');
+    await bot.press('nav:menu');
+    expect(bot.calls.filter((c) => c.method === 'sendMessage')).toHaveLength(0);
+    await bot.stop();
+  });
+
+  it('ignores group chats', async () => {
+    const bot = setup();
+    await bot.bot.handleUpdate({
+      update_id: 999,
+      message: { message_id: 1, date: 0, chat: { id: -5, type: 'group', title: 'g' }, from: bot.USER, text: 'hi' },
+    });
+    expect(bot.calls).toHaveLength(0);
     await bot.stop();
   });
 });

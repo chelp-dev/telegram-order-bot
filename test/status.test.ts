@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { canAdvance, canDecide, nextStatus, remainingStatuses } from '../src/core/status.js';
 import { Staff } from '../src/staff.js';
 import { Store, type Booking, type Order } from '../src/store.js';
+import { apiError } from './harness.js';
 
 describe('order status rules', () => {
   it('moves forward only, and may skip ahead', () => {
@@ -113,5 +114,68 @@ describe('Staff', () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(auto.status).toBe('confirmed');
     expect(manual.status).toBe('declined');
+  });
+
+  it('renders cards in order even when an earlier edit is slow', async () => {
+    const api = fakeApi();
+    const store = new Store();
+    const staff = new Staff(api as never, store, 0);
+    const order = makeOrder(store);
+    await staff.startOrder(order);
+
+    // Customer-card edits complete in the order recorded here; the first one is held back.
+    const landed: string[] = [];
+    let releaseSlowEdit = (): void => undefined;
+    api.editMessageText.mockImplementation((...args: unknown[]) => {
+      const [, messageId, text] = args;
+      if (messageId !== order.customerMessageId) return Promise.resolve(true);
+      const land = () => landed.push(String(text));
+      if (landed.length === 0 && String(text).includes('Accepted')) {
+        return new Promise((resolve) => {
+          releaseSlowEdit = () => {
+            land();
+            resolve(true);
+          };
+        });
+      }
+      land();
+      return Promise.resolve(true);
+    });
+
+    const first = staff.advanceOrder(order.id, 'accepted');
+    await vi.advanceTimersByTimeAsync(0); // the "accepted" edit is now in flight
+    const second = staff.advanceOrder(order.id, 'cooking');
+    await vi.advanceTimersByTimeAsync(0);
+    releaseSlowEdit();
+    await Promise.all([first, second]);
+
+    expect(landed.map((text) => (text.includes('Cooking') ? 'cooking' : 'accepted'))).toEqual(['accepted', 'cooking']);
+  });
+
+  it('sends a fresh card when the old one was deleted, but not on a rate limit', async () => {
+    const api = fakeApi();
+    const store = new Store();
+    const staff = new Staff(api as never, store, 0);
+    const order = makeOrder(store);
+    await staff.startOrder(order);
+
+    api.editMessageText.mockRejectedValueOnce(
+      apiError('editMessageText', 400, 'Bad Request: message to edit not found'),
+    );
+    await staff.advanceOrder(order.id, 'accepted');
+    expect(order.customerMessageId).toBe(101);
+
+    api.editMessageText.mockRejectedValueOnce(apiError('editMessageText', 429, 'Too Many Requests: retry after 3'));
+    await expect(staff.advanceOrder(order.id, 'cooking')).rejects.toThrow('429');
+    expect(api.sendMessage).toHaveBeenCalledTimes(2); // the staff card and the replacement, nothing more
+  });
+
+  it('stops advancing once the order is done', async () => {
+    const store = new Store();
+    const staff = new Staff(fakeApi() as never, store, 10_000);
+    const order = makeOrder(store);
+    await staff.startOrder(order);
+    await staff.advanceOrder(order.id, 'done', 1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
