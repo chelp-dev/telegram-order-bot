@@ -12,7 +12,7 @@ const { bot, setCommands, stop } = createBot(token, {
   autoAdvanceMs: Number.isFinite(autoAdvanceSeconds) ? Math.max(0, autoAdvanceSeconds) * 1000 : 12_000,
   timeZone: process.env.CAFE_TIMEZONE ?? 'Europe/Kyiv',
   siteUrl: 'https://chelp.dev',
-  repoUrl: process.env.REPO_URL ?? 'https://github.com/OWNER/chelp-demo-bot',
+  repoUrl: process.env.REPO_URL ?? 'https://github.com/chelp-dev/telegram-order-bot',
 });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
