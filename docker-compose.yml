@@ -1,0 +1,13 @@
+# Example: copy .env.example to .env, fill in BOT_TOKEN, then `docker compose up -d --build`.
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 256M
