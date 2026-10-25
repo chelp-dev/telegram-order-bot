@@ -22,8 +22,8 @@ export const uk = {
   // Menu and cart
   chooseCategory: 'Оберіть категорію:',
   qtyHint: 'Натискайте + і −, щоб змінити кількість.',
-  maxQty: (max: number) => `Не більше ${max} однакових позицій`,
-  cartEmpty: 'Кошик порожній. Загляньте в меню.',
+  maxQty: (max: number) => `Максимум ${max} шт. однієї позиції`,
+  cartEmpty: 'Кошик порожній. Зазирніть у меню.',
   cartTitle: 'Ваше замовлення:',
   total: (sum: string) => `Разом: ${sum}`,
   btnCheckout: 'Оформити замовлення',
@@ -63,7 +63,7 @@ export const uk = {
   status_new: '🆕 Нове',
   status_accepted: '👍 Прийнято',
   status_cooking: '👨‍🍳 Готуємо',
-  status_on_the_way: '🛵 В дорозі',
+  status_on_the_way: '🛵 У дорозі',
   status_ready: '🛍 Готове до видачі',
   status_done: '✅ Виконано',
   customerHint: 'Статус оновлюється в цьому повідомленні.',
@@ -73,10 +73,11 @@ export const uk = {
   staffBanner: '👀 Так це бачить персонал кав’ярні',
   staffNewOrder: 'Нове замовлення',
   staffNewBooking: 'Нове бронювання',
-  staffDemoNote: (seconds: number) => `У демо статус змінюється сам кожні ~${seconds} с. Або натискайте кнопки нижче.`,
+  staffDemoNote: (seconds: number) =>
+    `У демо статус змінюється автоматично кожні ~${seconds} с — або натискайте кнопки нижче.`,
   btnAccept: 'Прийняти',
   btnCooking: 'Готуємо',
-  btnOnTheWay: 'В дорозі',
+  btnOnTheWay: 'У дорозі',
   btnReady: 'Готове',
   btnDone: 'Виконано',
   btnApprove: 'Підтвердити',
@@ -103,9 +104,9 @@ export const uk = {
 
   // About
   about: (site: string, repo: string) =>
-    `Цього бота зробив <a href="${site}">chelp.dev</a> як демо: так може виглядати бот для вашого бізнесу.\n` +
+    `Цей демо-бот зробив <a href="${site}">chelp.dev</a>, щоб показати, яким може бути бот для вашого бізнесу.\n` +
     `Код відкритий: <a href="${repo}">GitHub</a>.\n` +
-    'Дані замовлень зберігаються лише в пам’яті й видаляються через 24 години.',
+    'Дані замовлень зберігаються лише в пам’яті та видаляються через 24 години.',
 
   // Bot commands (shown in the Telegram "/" menu)
   cmdStart: 'Головне меню',
