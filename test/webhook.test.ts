@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createWebhookServer, WEBHOOK_PATH } from '../src/webhook.js';
 import { setup, USER } from './harness.js';
 
@@ -63,6 +63,23 @@ describe('webhook server', () => {
     });
     expect(res.status).toBe(200);
     expect(sent().length).toBeGreaterThan(0);
+  });
+
+  it('acknowledges an update whose handler fails, so Telegram does not deliver it again', async () => {
+    const { base, failNext } = await start();
+    failNext('sendMessage', 400, 'Bad Request: chat not found');
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const res = await fetch(`${base}${WEBHOOK_PATH}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-telegram-bot-api-secret-token': SECRET },
+        body: startUpdate,
+      });
+      expect(res.status).toBe(200);
+      expect(logged).toHaveBeenCalledWith(expect.stringContaining('Error while handling update'), expect.anything());
+    } finally {
+      logged.mockRestore();
+    }
   });
 
   it('returns 404 for anything else', async () => {
