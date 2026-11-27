@@ -26,7 +26,8 @@ _Screenshots will be added here._
 
 ```
 src/
-  index.ts      entry point: config, start polling, graceful shutdown
+  index.ts      entry point: config, long polling or webhook, graceful shutdown
+  webhook.ts    webhook mode: HTTP server, Telegram secret check, health check
   config.ts     environment variables, validated at startup
   bot.ts        wiring: private-chat guard, rate limit, flows, error handler, cleanup timer
   context.ts    context type and helpers: show a screen, register a button
@@ -64,6 +65,18 @@ docker compose up -d --build
 
 The image is multi-stage, holds only production dependencies and runs as the non-root `node` user. The compose file adds a read-only filesystem, `no-new-privileges` and a 256 MB memory limit. On `SIGTERM` the bot stops polling and its timers, then exits.
 
+## Webhook mode (serverless hosts)
+
+Set `WEBHOOK_SECRET` and the bot stops polling: it listens on `PORT` (default `8080`), takes Telegram's updates as `POST /telegram`, refuses any request without the secret in `X-Telegram-Bot-Api-Secret-Token` (401), and answers `GET /` with `ok` as a health check. Register the URL once after each deploy:
+
+```bash
+curl -s "https://api.telegram.org/bot$BOT_TOKEN/setWebhook" \
+  --data-urlencode "url=https://<your-host>/telegram" \
+  --data-urlencode "secret_token=$WEBHOOK_SECRET"
+```
+
+State is in memory, so run a single instance, and keep the CPU on between requests if the host throttles it (the demo's status timers run after the request has ended). The public demo runs this way on Google Cloud Run with at most one instance, scaled to zero when idle.
+
 ## Configuration
 
 | Variable               | Default                                           | Meaning                                                      |
@@ -72,8 +85,10 @@ The image is multi-stage, holds only production dependencies and runs as the non
 | `AUTO_ADVANCE_SECONDS` | `12`                                              | Seconds between automatic status changes; `0` turns them off |
 | `CAFE_TIMEZONE`        | `Europe/Kyiv`                                     | IANA time zone for booking dates and slots                   |
 | `REPO_URL`             | `https://github.com/chelp-dev/telegram-order-bot` | Link shown in "About this demo"                              |
+| `WEBHOOK_SECRET`       | (unset: long polling)                             | Turns on webhook mode; 1-256 characters of `A-Za-z0-9_-`     |
+| `PORT`                 | `8080`                                            | Port of the webhook server (webhook mode only)               |
 
-Empty values fall back to the default. An invalid number or time zone stops the bot at startup with a clear message.
+Empty values fall back to the default. An invalid number, time zone, secret or port stops the bot at startup with a clear message.
 
 ## Adapt it for your business
 
@@ -89,7 +104,7 @@ Empty values fall back to the default. An invalid number or time zone stops the 
 - State lives in memory: a restart wipes it (old buttons then answer "expired"), and everything is deleted after 24 hours.
 - No payments and no real kitchen: the customer sees the staff card, and statuses advance on a timer.
 - Booking does not track table capacity; every slot is always free.
-- A single process with long polling.
+- A single process, by long polling or webhook; state is not shared between instances.
 
 ## Українською
 
