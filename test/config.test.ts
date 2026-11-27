@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ConfigError, DEFAULTS, loadConfig } from '../src/config.js';
+import { ConfigError, DEFAULT_PORT, DEFAULTS, loadConfig } from '../src/config.js';
 
 describe('loadConfig', () => {
   it('requires BOT_TOKEN', () => {
@@ -34,5 +34,25 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ BOT_TOKEN: 't', AUTO_ADVANCE_SECONDS: 'soon' })).toThrow(/AUTO_ADVANCE_SECONDS/);
     expect(() => loadConfig({ BOT_TOKEN: 't', AUTO_ADVANCE_SECONDS: '-1' })).toThrow(/AUTO_ADVANCE_SECONDS/);
     expect(() => loadConfig({ BOT_TOKEN: 't', CAFE_TIMEZONE: 'Mars/Olympus' })).toThrow(/CAFE_TIMEZONE/);
+  });
+
+  it('uses long polling unless WEBHOOK_SECRET is set', () => {
+    expect(loadConfig({ BOT_TOKEN: 't' }).webhook).toBeUndefined();
+    expect(loadConfig({ BOT_TOKEN: 't', WEBHOOK_SECRET: ' ', PORT: '9000' }).webhook).toBeUndefined();
+  });
+
+  it('reads the webhook secret and port, with 8080 as the default port', () => {
+    expect(loadConfig({ BOT_TOKEN: 't', WEBHOOK_SECRET: 'a_B-9' }).webhook).toEqual({
+      secret: 'a_B-9',
+      port: DEFAULT_PORT,
+    });
+    expect(loadConfig({ BOT_TOKEN: 't', WEBHOOK_SECRET: 's', PORT: '3000' }).webhook?.port).toBe(3000);
+  });
+
+  it('fails fast on a secret Telegram would refuse or a bad port', () => {
+    expect(() => loadConfig({ BOT_TOKEN: 't', WEBHOOK_SECRET: 'has space' })).toThrow(/WEBHOOK_SECRET/);
+    expect(() => loadConfig({ BOT_TOKEN: 't', WEBHOOK_SECRET: 'x'.repeat(257) })).toThrow(/WEBHOOK_SECRET/);
+    expect(() => loadConfig({ BOT_TOKEN: 't', WEBHOOK_SECRET: 's', PORT: '0' })).toThrow(/PORT/);
+    expect(() => loadConfig({ BOT_TOKEN: 't', WEBHOOK_SECRET: 's', PORT: '80.5' })).toThrow(/PORT/);
   });
 });

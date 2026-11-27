@@ -1,8 +1,9 @@
 import { createBot } from './bot.js';
 import { ConfigError, loadConfig } from './config.js';
+import { createWebhookServer } from './webhook.js';
 
 async function main(): Promise<void> {
-  const { token, config } = loadConfig(process.env);
+  const { token, config, webhook } = loadConfig(process.env);
   const { bot, setCommands, stop } = createBot(token, config);
 
   const shutdown = new AbortController();
@@ -15,6 +16,19 @@ async function main(): Promise<void> {
         process.exit(1);
       });
     });
+  }
+
+  if (webhook) {
+    // The host routes Telegram's POSTs here; the webhook URL itself is registered by the deploy.
+    await bot.init();
+    const server = createWebhookServer(bot, webhook.secret);
+    shutdown.signal.addEventListener('abort', () => server.close(), { once: true });
+    server.listen(webhook.port, () =>
+      console.log(`@${bot.botInfo.username} is running (webhook, port ${webhook.port})`),
+    );
+    // Not awaited: a cold start answers its first update without waiting for the command menu.
+    setCommands().catch((error: unknown) => console.error('setMyCommands failed:', error));
+    return;
   }
 
   await setCommands();

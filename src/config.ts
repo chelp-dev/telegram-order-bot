@@ -18,6 +18,18 @@ export const DEFAULTS = {
   repoUrl: 'https://github.com/chelp-dev/telegram-order-bot',
 } as const;
 
+/** Set when the bot receives updates by webhook instead of long polling. */
+export interface WebhookConfig {
+  /** Telegram sends it in X-Telegram-Bot-Api-Secret-Token; other requests are refused. */
+  secret: string;
+  port: number;
+}
+
+export const DEFAULT_PORT = 8080;
+
+/** Telegram's rule for secret_token: 1 to 256 characters of A-Z, a-z, 0-9, _ and -. */
+const SECRET_PATTERN = /^[A-Za-z0-9_-]{1,256}$/;
+
 export class ConfigError extends Error {}
 
 type Env = Record<string, string | undefined>;
@@ -27,7 +39,21 @@ function read(env: Env, name: string): string | undefined {
   return value === '' ? undefined : value;
 }
 
-export function loadConfig(env: Env): { token: string; config: BotConfig } {
+function loadWebhook(env: Env): WebhookConfig | undefined {
+  const secret = read(env, 'WEBHOOK_SECRET');
+  if (secret === undefined) return undefined;
+  if (!SECRET_PATTERN.test(secret)) {
+    throw new ConfigError('WEBHOOK_SECRET must be 1 to 256 characters of A-Z, a-z, 0-9, _ and -.');
+  }
+  const rawPort = read(env, 'PORT');
+  const port = rawPort === undefined ? DEFAULT_PORT : Number(rawPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new ConfigError(`PORT must be a whole number from 1 to 65535 (got "${rawPort ?? ''}").`);
+  }
+  return { secret, port };
+}
+
+export function loadConfig(env: Env): { token: string; config: BotConfig; webhook?: WebhookConfig } {
   const token = read(env, 'BOT_TOKEN');
   if (!token) {
     throw new ConfigError('BOT_TOKEN is not set. Create a bot with @BotFather and put its token into .env.');
@@ -46,8 +72,11 @@ export function loadConfig(env: Env): { token: string; config: BotConfig } {
     throw new ConfigError(`CAFE_TIMEZONE "${timeZone}" is not a known time zone (e.g. Europe/Kyiv).`);
   }
 
+  const webhook = loadWebhook(env);
+
   return {
     token,
+    ...(webhook && { webhook }),
     config: {
       autoAdvanceMs: Math.round(seconds * 1000),
       timeZone,
